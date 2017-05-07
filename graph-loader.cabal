@@ -1,0 +1,98 @@
+name:                graph-loader
+version:             1.0.0
+synopsis:            Netwire/GLFW/VinylGL graph drawing tool
+description:         Tests for loading a graph from a file.
+author:              Rand Kleisli
+maintainer:          runKleisli@openmailbox.org
+category:            Game
+build-type:          Simple
+extra-source-files:  README.md
+data-files:          etc/*.frag, etc/*.vert
+cabal-version:       >=1.10
+
+executable GraphLoaderCtrl
+  main-is:        CtrlExample.hs
+  other-modules:  CursorProgram, GraphProgram
+  hs-source-dirs: src
+  ghc-options:    -Wall -rtsopts -O3 -threaded
+
+  build-depends:  base > 4.5 && < 5,
+                  lens >= 3.9,
+                  vinyl >= 0.4,
+                  netwire == 5.0.0,
+                  netwire-input,
+                  netwire-input-glfw >=0.0.5 && <= 0.0.6,
+                  OpenGL >= 2.9.2,
+                  GLFW-b >= 1.4,
+                  linear >= 1.1,
+                  GLUtil >= 0.7,
+                  vinyl-gl >= 0.2,
+                  transformers,
+                  array,
+                  bytestring,
+                  mtl >= 2.2.1,
+                  containers >= 0.5,
+                  directory >= 1.2,
+                  filepath ==1.3.*
+  default-language:  Haskell2010
+
+executable GraphLoaderProgressReporting
+  main-is:        ReportingProgressExample.hs
+  hs-source-dirs: src
+  ghc-options:    -Wall -rtsopts -O3 -threaded
+
+  build-depends:  base > 4.5 && < 5,
+                  transformers,
+                  array,
+                  bytestring,
+                  stm,
+                  mtl >= 2.2.1,
+                  containers >= 0.5,
+                  directory >= 1.2,
+                  filepath ==1.3.*
+  default-language:  Haskell2010
+
+executable GraphLoaderLoadReporting
+  main-is:        ReportingLoadExample.hs
+  hs-source-dirs: src
+  ghc-options:    -Wall -rtsopts -O3 -threaded
+
+  build-depends:  base > 4.5 && < 5,
+                  deepseq >= 1.1.0.0,
+                  transformers,
+                  array,
+                  bytestring,
+                  stm,
+                  mtl >= 2.2.1,
+                  containers >= 0.5,
+                  directory >= 1.2,
+                  filepath ==1.3.*
+  default-language:  Haskell2010
+
+executable GraphLoadingScr
+  main-is:        GraphLoadingScr.hs
+  other-modules:  CursorProgram, GraphProgram
+  hs-source-dirs: src
+  ghc-options:    -Wall -rtsopts -O3 -threaded
+
+  build-depends:  base > 4.5 && < 5,
+                  deepseq >= 1.1.0.0,
+                  lens >= 3.9,
+                  vinyl >= 0.4,
+                  netwire == 5.0.0,
+                  netwire-input,
+                  netwire-input-glfw >=0.0.5 && <= 0.0.6,
+                  OpenGL >= 2.9.2,
+                  GLFW-b >= 1.4,
+                  linear >= 1.1,
+                  GLUtil >= 0.7,
+                  vinyl-gl >= 0.2,
+                  transformers,
+                  array,
+                  bytestring,
+                  stm,
+                  mtl >= 2.2.1,
+                  containers >= 0.5,
+                  directory >= 1.2,
+                  filepath ==1.3.*
+  default-language:  Haskell2010
