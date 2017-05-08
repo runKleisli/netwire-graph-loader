@@ -71,11 +71,12 @@ initialVal f = now >>> once >>> onEventM f >>> hold
 type MidLoadGraph =
 	'[ '("jobsize", Integer)
 	, '("chunkT_doneF", TChan Bool)
+	, '("fvert", TVar [[Double]])
 	, '("fedge", TVar [[Int]]) ]
 
 -- !!! No effort is made to catch errors from file IO or STM. !!!
-reedyFn :: Read a => FilePath -> TChan Integer -> TVar a -> TChan Bool -> IO ()
-reedyFn file leaveSizeHere dest talker = withFile file ReadMode $ \handle -> do
+reedyFn :: Read a => FilePath -> TVar a -> TChan Integer -> TChan Bool -> IO ()
+reedyFn file dest leaveSizeHere talker = withFile file ReadMode $ \handle -> do
 	hFileSize handle >>= atomically . writeTChan leaveSizeHere
 	-- (Char)s are 32-bit words internally, last time I checked.
 	hSetBuffering handle $ BlockBuffering (Just $ 4*howmany)
@@ -98,17 +99,24 @@ startLoadingGraph :: (Monoid e) => Wire s e GameMonad a (FieldRec MidLoadGraph)
 startLoadingGraph = initialVal $ \_ -> lift $ do
 	-- TChan are not initialized to a value, so no filesize=0 scenario induced,
 	-- & multiple files supported.
-	andrew <- newTChanIO :: IO (TChan Integer)
+	filesizes <- newTChanIO :: IO (TChan Integer)
 	-- This is where we read (True) after each chunk is read & (False) on full load.
 	jacky <- newTChanIO :: IO (TChan Bool)
-	francis <- newTVarIO [] :: IO (TVar [[Int]])
-	forkIO $ reedyFn ("graphs"</>"GraphEdgeInds.txt") andrew francis jacky
-	andrew' <- atomically $ readTChan andrew
+	vertSource <- newTVarIO [] :: IO (TVar [[Double]])
+	edgeSource <- newTVarIO [] :: IO (TVar [[Int]])
+	forkIO $ reedyFn ("graphs"</>"GraphVerts.txt") vertSource filesizes jacky
+	vertFileSz <- atomically $ readTChan filesizes
+	forkIO $ seq vertFileSz
+		$ reedyFn ("graphs"</>"GraphEdgeInds.txt") edgeSource filesizes jacky
+	edgeFileSz <- atomically $ readTChan filesizes
 	-- Should count how many files are to be read and make sure (isEmptyTChan)
 	-- after that many reads.
-	return $ SField =: andrew' Vy.<+> SField =: jacky Vy.<+> SField =: francis
+	return $ SField =: (vertFileSz+edgeFileSz)
+		Vy.<+> SField =: jacky
+		Vy.<+> SField =: vertSource
+		Vy.<+> SField =: edgeSource
 
--- Should become ProjInfo2D
+-- Should become CompRec1D
 type GraphExtract = '[ '("outedges", [[Int]]) ]
 
 getThatGraph :: (Monoid e, MidLoadGraph <: j)
@@ -136,12 +144,19 @@ pretendItsLoading rfn =
 	totalSize &&& (
 		-- Emits an event w/ value True when a chunk has loaded, inhibits forever
 		-- w/ value False when full file is loaded.
-		checkOnIt >>> filterE id &&& dropWhileE id >>> W.until
+		-- This one's for the Verts.
+		( checkOnIt >>> filterE id &&& (dropWhileE id
+				>>> onEventM (\x -> lift $ print x >> return x) )
+			>>> W.until )
+		-->
+		-- Same thing a 2nd time.
+		-- This one's for the Edges.
+		( checkOnIt >>> filterE id &&& dropWhileE id >>> W.until )
 	)
 
 	-- Keeps track of how many chunks have loaded and represents that visually.
 	>>> ( mkId *** (tallyChunks >>> hold) >>> fractionLoaded )
-	>>> (mkGen_ $ \x -> lift $ print x >> return (Right x)) -- Diagnose float acc
+	-- >>> (mkGen_ $ \x -> lift $ print x >> return (Right x)) -- Diagnose float acc
 	>>> posWire &&& statusColor >>> bindCircStyle
 	>>> renderWire rfn
 	where
