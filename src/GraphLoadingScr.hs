@@ -1,4 +1,4 @@
-{-# LANGUAGE DataKinds, FlexibleContexts, TypeOperators #-}
+{-# LANGUAGE DataKinds, FlexibleContexts, TypeOperators, TupleSections #-}
 
 module Main where
 
@@ -9,7 +9,7 @@ import Data.Maybe (isNothing)
 import Control.Monad.State
 import Control.Wire hiding (unless, until, (.), id)
 import qualified Control.Wire as W (until)
-import Control.Wire.Unsafe.Event (onEventM)
+import Control.Wire.Unsafe.Event (onEventM, Event(..))
 
 import FRP.Netwire.Input
 import FRP.Netwire.Input.GLFW
@@ -123,10 +123,10 @@ pretendItsLoading rfn =
 	-- Emits an event w/ value True when a chunk has loaded, inhibits forever
 	-- w/ value False when full file is loaded.
 
-	checkOnIt >>> (became id &&& noLonger id) >>> W.until
+	checkOnIt >>> filterE id &&& dropWhileE id >>> W.until
 
 	-- Originally, I did this
-	-- checkOnIt >>> (became id &&& noLonger id) >>> W.until
+	-- checkOnIt >>> became id &&& noLonger id >>> W.until
 
 	-- But the problem is the event only triggers once.
 	-- This suggests the channel is also only read once.
@@ -134,7 +134,7 @@ pretendItsLoading rfn =
 	-- Here the event triggers only once, also.
 	-- However, instead of proceeding to the loaded state after a while,
 	-- it proceeds to the error "thread blocked indefinitely in an STM transaction"
-	-- checkOnIt >>> now >>> (filterE id &&& dropWhileE id) >>> W.until
+	-- checkOnIt >>> now >>> filterE id &&& dropWhileE id >>> W.until
 
 	-- Perhaps we needed to make it (<|> never)...
 	-- But we should also just switch away from this wire once it's used up.
@@ -146,21 +146,39 @@ pretendItsLoading rfn =
 	-- Keeps track of how many chunks have loaded and represents that visually.
 	>>> ( onEventM $ \x -> lift $ print x >> return x )
 	>>> tallyChunks >>> hold
-	>>> (posWire &&& statusColor) >>> bindCircStyle
+	>>> posWire &&& statusColor >>> bindCircStyle
 	>>> renderWire rfn
 	where
+		{-
+		-- Original
 		checkOnIt :: (MidLoadGraph <: j) => Wire s e GameMonad (FieldRec j) Bool
 		checkOnIt = mkGen_ $ \datarec -> lift $
 			return (rcast datarec :: FieldRec MidLoadGraph)
 			>>= (return . getField . rget talker)
 			>>= (fmap Right . atomically . readTChan)
+
+		-- This changes nothing.
+		-- Filtered w/ (now >>> filterE id) &&& noLonger id
+		checkOnIt :: (MidLoadGraph <: j)
+			=> Wire s e GameMonad (FieldRec j) Bool
+		checkOnIt = mkGenN $ \datarec -> lift $
+			return (rcast datarec :: FieldRec MidLoadGraph)
+			>>= (return . getField . rget talker)
+			>>= (fmap ((, checkOnIt') . Right) . atomically . readTChan)
+		-}
+		checkOnIt :: (MidLoadGraph <: j)
+			=> Wire s e GameMonad (FieldRec j) (Event Bool)
+		checkOnIt = mkGen_ $ \datarec -> lift $
+			return (rcast datarec :: FieldRec MidLoadGraph)
+			>>= (return . getField . rget talker)
+			>>= (fmap (Right . Event) . atomically . readTChan)
 		talker = SField :: SField '("chunkT_doneF", TChan Bool)
 		tallyChunks :: Wire s e m (Event Bool) (Event GL.GLfloat)
 		tallyChunks = accumE (\x y -> if y then x+1 else x) 0.0
 		statusColor :: (HasTime t s)
 			=> Wire s e GameMonad GL.GLfloat (V3 GL.GLfloat)
-		statusColor = ( mkId &&& (timeF >>> (arr $ (abs . cos) &&& (abs . sin))) )
-			>>> ( arr $ \(x, (y,z)) -> V3 (y/x) (z/x) (1/x) )
+		statusColor = mkId &&& ( timeF >>> (arr $ (abs . cos) &&& (abs . sin)) )
+			>>> ( arr $ \(x, (y,z)) -> V3 (y/log x) (z/log x) (1/log x) )
 		bindCircStyle = arr $ \(pos, color) -> SField =: pos Vy.<+> SField =: color :: FieldRec CursorCircleStyle
 
 splash :: (HasTime t s, Monoid e) =>
@@ -168,7 +186,7 @@ splash :: (HasTime t s, Monoid e) =>
 	-> Wire s e GameMonad a ()
 splash dflt =
   -- Once key is pressed it'll start loading & then become a graph.
-  ( mkId &&& ((keyPressed GLFW.Key'L >>> pure loadIntoGraph >>> now) <|> never) )
+  mkId &&& ((keyPressed GLFW.Key'L >>> pure loadIntoGraph >>> now) <|> never)
   -- Until then, it'll be this circle dealy.
   >>> rSwitch dfltCircle
   where
