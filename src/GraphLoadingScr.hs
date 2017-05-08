@@ -122,50 +122,13 @@ pretendItsLoading :: (Monoid e, HasTime t s, MidLoadGraph <: j)
 pretendItsLoading rfn =
 	-- Emits an event w/ value True when a chunk has loaded, inhibits forever
 	-- w/ value False when full file is loaded.
-
 	checkOnIt >>> filterE id &&& dropWhileE id >>> W.until
 
-	-- Originally, I did this
-	-- checkOnIt >>> became id &&& noLonger id >>> W.until
-
-	-- But the problem is the event only triggers once.
-	-- This suggests the channel is also only read once.
-
-	-- Here the event triggers only once, also.
-	-- However, instead of proceeding to the loaded state after a while,
-	-- it proceeds to the error "thread blocked indefinitely in an STM transaction"
-	-- checkOnIt >>> now >>> filterE id &&& dropWhileE id >>> W.until
-
-	-- Perhaps we needed to make it (<|> never)...
-	-- But we should also just switch away from this wire once it's used up.
-	-- Maybe we just put "now" in in the wrong order.
-
-	-- Maybe we need to make our own stateful arrow, like in (became) and (noLonger).
-	-- Or we can just emit events from (checkOnIt).
-
 	-- Keeps track of how many chunks have loaded and represents that visually.
-	>>> ( onEventM $ \x -> lift $ print x >> return x )
 	>>> tallyChunks >>> hold
 	>>> posWire &&& statusColor >>> bindCircStyle
 	>>> renderWire rfn
 	where
-		{-
-		-- Original
-		checkOnIt :: (MidLoadGraph <: j) => Wire s e GameMonad (FieldRec j) Bool
-		checkOnIt = mkGen_ $ \datarec -> lift $
-			return (rcast datarec :: FieldRec MidLoadGraph)
-			>>= (return . getField . rget talker)
-			>>= (fmap Right . atomically . readTChan)
-
-		-- This changes nothing.
-		-- Filtered w/ (now >>> filterE id) &&& noLonger id
-		checkOnIt :: (MidLoadGraph <: j)
-			=> Wire s e GameMonad (FieldRec j) Bool
-		checkOnIt = mkGenN $ \datarec -> lift $
-			return (rcast datarec :: FieldRec MidLoadGraph)
-			>>= (return . getField . rget talker)
-			>>= (fmap ((, checkOnIt') . Right) . atomically . readTChan)
-		-}
 		checkOnIt :: (MidLoadGraph <: j)
 			=> Wire s e GameMonad (FieldRec j) (Event Bool)
 		checkOnIt = mkGen_ $ \datarec -> lift $
