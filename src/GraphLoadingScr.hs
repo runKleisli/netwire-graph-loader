@@ -29,7 +29,7 @@ import Linear (V2(..), V3(..))
 import System.Directory (getCurrentDirectory, setCurrentDirectory)
 import System.FilePath ((</>))
 
-import CursorProgram (CursorCircleStyle(..), cursorCircle)
+import CursorProgram (CursorCircleStyle, cursorCircle)
 
 import GraphProgram (ProjInfo2D, CompRec1D, comp1Dvref, comp1Deref, bestDrawing, cursorCircle2)
 
@@ -116,26 +116,29 @@ startLoadingGraph = initialVal $ \_ -> lift $ do
 		Vy.<+> SField =: vertSource
 		Vy.<+> SField =: edgeSource
 
--- Should become CompRec1D
-type GraphExtract = '[ '("outedges", [[Int]]) ]
-
 getThatGraph :: (Monoid e, MidLoadGraph <: j)
-	=> Wire s e GameMonad (FieldRec j) (FieldRec GraphExtract)
-getThatGraph = initialVal $ \datarec -> lift $
-	return (rcast datarec :: FieldRec MidLoadGraph)
-	>>= (return . getField . rget sink)
-	>>= readTVarIO
-	>>= (return . (edgesField =:))
+	=> Wire s e GameMonad (FieldRec j) (FieldRec CompRec1D)
+getThatGraph = initialVal $ \datarec -> lift $ do
+	-- For some reason, (let datarec' = rcast ...) gives a constraint deduction error.
+	datarec' <- return (rcast datarec :: FieldRec MidLoadGraph)
+	verts <- readTVarIO $ getField (rget vertSource datarec')
+	edges <- readTVarIO $ getField (rget edgeSource datarec')
+	return $ comp1Dvref =: verts Vy.<+> comp1Deref =: edges
 	where
-		sink = SField :: SField '("fedge", TVar [[Int]])
-		edgesField = SField :: SField '("outedges", [[Int]])
+		vertSource = SField :: SField '("fvert", TVar [[Double]])
+		edgeSource = SField :: SField '("fedge", TVar [[Int]])
 
-beThatGraph :: (Monoid e, GraphExtract <: j)
-	=> (FieldRec CursorCircleStyle -> IO ())
-	-> Wire s e GameMonad (FieldRec j) ()
-beThatGraph rfn = (posWire &&& (pure $ V3 0 1 0)) >>> bindCircStyle >>> renderWire rfn
+beThatGraph :: (Monoid e, CompRec1D <: j)
+	=> Wire s e GameMonad (FieldRec j) ()
+beThatGraph = mkId &&& (posWire >>> bindGraphStyle)
+	>>>
+	(mkGen_ $ \(comprec1D, projinfo2D) -> lift $ do
+		-- rfn :: (ProjInfo2D <: i) => FieldRec i -> IO ()
+		rfn <- bestDrawing comprec1D
+		rfn projinfo2D >> (return $ Right ())
+	)
 	where
-		bindCircStyle = arr $ \(pos, color) -> SField =: pos Vy.<+> SField =: color :: FieldRec CursorCircleStyle
+		bindGraphStyle = arr $ \pos -> SField =: pos :: FieldRec ProjInfo2D
 
 pretendItsLoading :: (Monoid e, HasTime t s, MidLoadGraph <: j)
 	=> (FieldRec CursorCircleStyle -> IO ())
@@ -145,9 +148,7 @@ pretendItsLoading rfn =
 		-- Emits an event w/ value True when a chunk has loaded, inhibits forever
 		-- w/ value False when full file is loaded.
 		-- This one's for the Verts.
-		( checkOnIt >>> filterE id &&& (dropWhileE id
-				>>> onEventM (\x -> lift $ print x >> return x) )
-			>>> W.until )
+		( checkOnIt >>> filterE id &&& dropWhileE id >>> W.until )
 		-->
 		-- Same thing a 2nd time.
 		-- This one's for the Edges.
@@ -199,7 +200,7 @@ splash dflt =
     -- Use (startLoadingGraph) to get load state, then process it w/ (pretendItsLoading)
     -- until that inhibits, then behave like (getThatGraph >>> beThatGraph)
     loadIntoGraph = startLoadingGraph
-      >>> (pretendItsLoading dflt --> (getThatGraph >>> beThatGraph dflt))
+      >>> (pretendItsLoading dflt --> (getThatGraph >>> beThatGraph))
 
 -- This is our main game wire, it feeds the position and color into the rendering loop
 -- and finally quits if q is pressed.
