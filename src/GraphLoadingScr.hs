@@ -68,17 +68,23 @@ quitWire = (mkId &&& eventWire) >>> (rSwitch mkId)
 initialVal :: (Monoid e, Monad m) => (a -> m b) -> Wire s e m a b
 initialVal f = now >>> once >>> onEventM f >>> hold
 
-type MidLoadGraph = '[ '("chunkT_doneF", TChan Bool), '("fedge", TVar [[Int]]) ]
+type MidLoadGraph =
+	'[ '("jobsize", Integer)
+	, '("chunkT_doneF", TChan Bool)
+	, '("fedge", TVar [[Int]]) ]
 
-reedyFn :: FilePath -> TVar [[Int]] -> TChan Bool -> IO ()
-reedyFn file dest talker = withFile file ReadMode $ \handle -> do
+-- !!! No effort is made to catch errors from file IO or STM. !!!
+reedyFn :: Read a => FilePath -> TChan Integer -> TVar a -> TChan Bool -> IO ()
+reedyFn file leaveSizeHere dest talker = withFile file ReadMode $ \handle -> do
+	hFileSize handle >>= atomically . writeTChan leaveSizeHere
 	-- (Char)s are 32-bit words internally, last time I checked.
 	hSetBuffering handle $ BlockBuffering (Just $ 4*howmany)
 	contents <- hGetContents handle
-	loopConsume contents (read contents :: [[Int]]) dest talker
+	loopConsume contents (read contents) dest talker
 	where
 		howmany = 1024 {- Effectively the number of bytes in a chunk (/ 4)d. -}
 		-- We use the String rep so we can match words in buffer w/ elems to eval.
+		-- Since Haskell uses 32-bit Chars, this means 4 bytes per elem.
 		loopConsume :: String -> a -> TVar a -> TChan Bool -> IO ()
 		loopConsume "" x sink talk = atomically $ do
 			writeTVar sink x	-- (x) has been processed, so output.
@@ -90,10 +96,17 @@ reedyFn file dest talker = withFile file ReadMode $ \handle -> do
 
 startLoadingGraph :: (Monoid e) => Wire s e GameMonad a (FieldRec MidLoadGraph)
 startLoadingGraph = initialVal $ \_ -> lift $ do
+	-- TChan are not initialized to a value, so no filesize=0 scenario induced,
+	-- & multiple files supported.
+	andrew <- newTChanIO :: IO (TChan Integer)
+	-- This is where we read (True) after each chunk is read & (False) on full load.
 	jacky <- newTChanIO :: IO (TChan Bool)
 	francis <- newTVarIO [] :: IO (TVar [[Int]])
-	forkIO $ reedyFn ("graphs"</>"GraphEdgeInds.txt") francis jacky
-	return $ SField =: jacky Vy.<+> SField =: francis
+	forkIO $ reedyFn ("graphs"</>"GraphEdgeInds.txt") andrew francis jacky
+	andrew' <- atomically $ readTChan andrew
+	-- Should count how many files are to be read and make sure (isEmptyTChan)
+	-- after that many reads.
+	return $ SField =: andrew' Vy.<+> SField =: jacky Vy.<+> SField =: francis
 
 -- Should become ProjInfo2D
 type GraphExtract = '[ '("outedges", [[Int]]) ]
@@ -120,12 +133,15 @@ pretendItsLoading :: (Monoid e, HasTime t s, MidLoadGraph <: j)
 	=> (FieldRec CursorCircleStyle -> IO ())
 	-> Wire s e GameMonad (FieldRec j) ()
 pretendItsLoading rfn =
-	-- Emits an event w/ value True when a chunk has loaded, inhibits forever
-	-- w/ value False when full file is loaded.
-	checkOnIt >>> filterE id &&& dropWhileE id >>> W.until
+	totalSize &&& (
+		-- Emits an event w/ value True when a chunk has loaded, inhibits forever
+		-- w/ value False when full file is loaded.
+		checkOnIt >>> filterE id &&& dropWhileE id >>> W.until
+	)
 
 	-- Keeps track of how many chunks have loaded and represents that visually.
-	>>> tallyChunks >>> hold
+	>>> ( mkId *** (tallyChunks >>> hold) >>> fractionLoaded )
+	>>> (mkGen_ $ \x -> lift $ print x >> return (Right x)) -- Diagnose float acc
 	>>> posWire &&& statusColor >>> bindCircStyle
 	>>> renderWire rfn
 	where
@@ -136,12 +152,21 @@ pretendItsLoading rfn =
 			>>= (return . getField . rget talker)
 			>>= (fmap (Right . Event) . atomically . readTChan)
 		talker = SField :: SField '("chunkT_doneF", TChan Bool)
-		tallyChunks :: Wire s e m (Event Bool) (Event GL.GLfloat)
-		tallyChunks = accumE (\x y -> if y then x+1 else x) 0.0
+		totalSize :: (MidLoadGraph <: j)
+			=> Wire s e GameMonad (FieldRec j) Integer
+		totalSize = arr $ getField . rget jobsize
+			. \x -> (rcast x :: FieldRec MidLoadGraph)
+		jobsize = SField :: SField '("jobsize", Integer)
+		tallyChunks :: Wire s e m (Event Bool) (Event Integer)
+		tallyChunks = accumE (\x y -> if y then x+1 else x) 0
+		-- For the magic number 1024, see (howmany) def.d in (reedyFn).
+		fractionLoaded :: (Monad m)
+			=> Wire s e m (Integer, Integer) GL.GLfloat
+		fractionLoaded = arr $ \(x,y) -> (fromIntegral $ y*1024)/(fromIntegral x)
 		statusColor :: (HasTime t s)
 			=> Wire s e GameMonad GL.GLfloat (V3 GL.GLfloat)
 		statusColor = mkId &&& ( timeF >>> (arr $ (abs . cos) &&& (abs . sin)) )
-			>>> ( arr $ \(x, (y,z)) -> V3 (y/log x) (z/log x) (1/log x) )
+			>>> ( arr $ \(x, (y,z)) -> V3 (y*(1-x)) (z*(1-x)) (1*(1-x)) )
 		bindCircStyle = arr $ \(pos, color) -> SField =: pos Vy.<+> SField =: color :: FieldRec CursorCircleStyle
 
 splash :: (HasTime t s, Monoid e) =>
