@@ -291,4 +291,4 @@ initGL windowTitle width height = do
 	mkInputControl w >>= (\x -> return (w, x))
 
 main :: IO ()
-main = initGL "Netwire Input Demo" 1000 1000 >>= uncurry run
+main = initGL "Netwire Input Demo" 500 500 >>= uncurry run
