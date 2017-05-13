@@ -66,7 +66,7 @@ quitWire = (mkId &&& eventWire) >>> (rSwitch mkId)
 -- type CursorCircleStyle = '[ '("offset", V2 GL.GLfloat), '("color", V3 GL.GLfloat) ]
 
 initialVal :: (Monoid e, Monad m) => (a -> m b) -> Wire s e m a b
-initialVal f = now >>> once >>> onEventM f >>> hold
+initialVal f = now >>> onEventM f >>> hold
 
 type MidLoadGraph =
 	'[ '("jobsize", Integer)
