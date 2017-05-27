@@ -22,6 +22,7 @@ import System.IO
 import Control.Concurrent (forkIO)
 import Control.Concurrent.STM
 import Control.DeepSeq (deepseq, NFData)
+import qualified Control.DeepSeq as DSeq (force)
 
 import Data.Vinyl hiding ((<+>))
 import qualified Data.Vinyl as Vy ((<+>))
@@ -67,6 +68,18 @@ quitWire = (mkId &&& eventWire) >>> (rSwitch mkId)
 
 initialVal :: (Monoid e, Monad m) => (a -> m b) -> Wire s e m a b
 initialVal f = now >>> onEventM f >>> hold
+{-
+-- Attempt at making a switch-based (initialVal).
+-- 
+-- Stuff in another thread never happens.
+-- Maybe we need to (seq) the result of (f)?
+-- Or make like (renderWire) and (>>) into (return $ Right result)? Same thing?
+
+initialVal f = (mkId &&&
+		-- Apply (f) then emit the constant arrow for the rslt as Event
+		( (mkGen_ $ liftM (Right . mkConst . Right) . f) >>> now ))
+	>>> rSwitch mkEmpty -- Until the constant arrow event comes, inhibit
+-}
 
 type MidLoadGraph =
 	'[ '("jobsize", Integer)
@@ -123,22 +136,43 @@ getThatGraph = initialVal $ \datarec -> lift $ do
 	datarec' <- return (rcast datarec :: FieldRec MidLoadGraph)
 	verts <- readTVarIO $ getField (rget vertSource datarec')
 	edges <- readTVarIO $ getField (rget edgeSource datarec')
-	return $ comp1Dvref =: verts Vy.<+> comp1Deref =: edges
+	-- Vinyl recs are strict in their fields by default, see (Vy.Functor.Thunk)
+	-- So, this next form should be no better at forcing the file contents to memory.
+	return $ comp1Dvref =: DSeq.force verts Vy.<+> comp1Deref =: DSeq.force edges
+	-- However, this next form seems to be worse in practice. Maybe it's the deepness.
+	-- return $ comp1Dvref =: verts Vy.<+> comp1Deref =: edges
 	where
 		vertSource = SField :: SField '("fvert", TVar [[Double]])
 		edgeSource = SField :: SField '("fedge", TVar [[Int]])
 
+-- | What we'd do in a generalized vrsn of this is make (beThatGraph) take (Event)s
+-- of (FieldRec)s of super(Rec)s of (CompRec1D), & (hold) the (Event)s to
+-- get the control flow of recomputing (graphShader) precisely when an incoming (Event)
+-- comes signifying a change to the assets being rendered.
+-- To preserve this example then, compose (now) inbetween (getThatGraph, beThatGraph).
 beThatGraph :: (Monoid e, CompRec1D <: j)
 	=> Wire s e GameMonad (FieldRec j) ()
-beThatGraph = mkId &&& (posWire >>> bindGraphStyle)
-	>>>
-	(mkGen_ $ \(comprec1D, projinfo2D) -> lift $ do
-		-- rfn :: (ProjInfo2D <: i) => FieldRec i -> IO ()
-		rfn <- bestDrawing comprec1D
-		rfn projinfo2D >> (return $ Right ())
-	)
+-- beThatGraph = mkId &&& (posWire >>> bindGraphStyle) >>> graphWire
+beThatGraph = {- A (<*>) analogue of (renderWire) -}
+	graphShader <*> (posWire >>> bindGraphStyle)
+		>>> ( mkGen_ $ lift . (>> (return . Right $ ())) )
 	where
 		bindGraphStyle = arr $ \pos -> SField =: pos :: FieldRec ProjInfo2D
+		{-
+		graphWire :: (Monoid e, CompRec1D <: j)
+			=> Wire s e GameMonad (FieldRec j, FieldRec ProjInfo2D) ()
+		graphWire = mkGen_ $ \(comprec1D, projinfo2D) -> lift $ do
+			-- rfn :: (ProjInfo2D <: i) => FieldRec i -> IO ()
+			rfn <- bestDrawing (rcast comprec1D :: FieldRec CompRec1D)
+			rfn projinfo2D >> (return $ Right ())
+		-- Here the shader (rfn) should be constant; in general, change only
+		-- when the actual assets change. This is honestly probably why the program's so slow. But then we don't need the (comprec1D) after, so this Wire should change to one w/c becomes (posWire >>> bindGraphStyle >>> graphFromProjInfo). But then (getThatGraph >>> beThatGraph) becomes a composite of things w/c have a first-time and subsequent-time part.
+		-}
+		graphShader :: (Monoid e, CompRec1D <: j, ProjInfo2D <: i)
+			=> Wire s e GameMonad (FieldRec j) (FieldRec i -> IO ())
+		-- I think (force) is redundant here, but I wanna.
+		-- graphShader = initialVal (lift . bestDrawing) >>> force
+		graphShader = initialVal (lift . bestDrawing)
 
 pretendItsLoading :: (Monoid e, HasTime t s, MidLoadGraph <: j)
 	=> (FieldRec CursorCircleStyle -> IO ())
