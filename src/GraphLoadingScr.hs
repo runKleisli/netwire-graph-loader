@@ -40,6 +40,11 @@ import GraphProgram (ProjInfo2D, CompRec1D, comp1Dvref, comp1Deref, bestDrawing,
 type GameMonad = GLFWInputT IO
 type GameSession = Session IO (Timed Float ())
 
+{-
+rWireCast :: (Monad m, a <: b) => Wire s e m (FieldRec a) c -> Wire s e m (FieldRec b) c
+rWireCast = ((arr rcast) >>>)
+-}
+
 -- This wire takes a Vinyl record whose fields have those of the passed in rendering
 -- function as a subset and renders according to that function. In reality, this wire
 -- doesn't need to be a wire, and could just be a monad to render, but this way we can
@@ -150,29 +155,77 @@ getThatGraph = initialVal $ \datarec -> lift $ do
 -- get the control flow of recomputing (graphShader) precisely when an incoming (Event)
 -- comes signifying a change to the assets being rendered.
 -- To preserve this example then, compose (now) inbetween (getThatGraph, beThatGraph).
-beThatGraph :: (Monoid e, CompRec1D <: j)
-	=> Wire s e GameMonad (FieldRec j) ()
--- beThatGraph = mkId &&& (posWire >>> bindGraphStyle) >>> graphWire
-beThatGraph = {- A (<*>) analogue of (renderWire) -}
-	graphShader <*> (posWire >>> bindGraphStyle)
+beThatGraph :: (Monoid e, CompRec1D <: j) => Wire s e GameMonad (FieldRec j) ()
+beThatGraph = graphShader <*> (posWire >>> bindGraphStyle)
 		>>> ( mkGen_ $ lift . (>> (return . Right $ ())) )
 	where
 		bindGraphStyle = arr $ \pos -> SField =: pos :: FieldRec ProjInfo2D
-		{-
-		graphWire :: (Monoid e, CompRec1D <: j)
-			=> Wire s e GameMonad (FieldRec j, FieldRec ProjInfo2D) ()
-		graphWire = mkGen_ $ \(comprec1D, projinfo2D) -> lift $ do
-			-- rfn :: (ProjInfo2D <: i) => FieldRec i -> IO ()
-			rfn <- bestDrawing (rcast comprec1D :: FieldRec CompRec1D)
-			rfn projinfo2D >> (return $ Right ())
-		-- Here the shader (rfn) should be constant; in general, change only
-		-- when the actual assets change. This is honestly probably why the program's so slow. But then we don't need the (comprec1D) after, so this Wire should change to one w/c becomes (posWire >>> bindGraphStyle >>> graphFromProjInfo). But then (getThatGraph >>> beThatGraph) becomes a composite of things w/c have a first-time and subsequent-time part.
-		-}
+		-- Here the shader is constant; in general, it should change only
+		-- when the actual assets change.
+		-- Because of this choice, (getThatGraph >>> beThatGraph) is
+		-- a composite of things w/c have a first-time and subsequent-time part.
 		graphShader :: (Monoid e, CompRec1D <: j, ProjInfo2D <: i)
 			=> Wire s e GameMonad (FieldRec j) (FieldRec i -> IO ())
-		-- I think (force) is redundant here, but I wanna.
-		-- graphShader = initialVal (lift . bestDrawing) >>> force
 		graphShader = initialVal (lift . bestDrawing)
+
+{-
+-- | A `<*>` analogue of (renderWire)
+renderWireAct :: (Monoid e, renderdata <: i)
+	=> Wire s e GameMonad a (FieldRec renderdata -> IO ())
+	-> Wire s e GameMonad a (FieldRec i)
+	-> Wire s e GameMonad a ()
+renderWireAct f g = (f >>> arr (.rcast)) <*> g
+	>>> ( mkGen_ $ lift . (>> (return . Right $ ())) )
+
+Can combine w/ (rWireCast) on both arguments, but need such subset constraints
+to be provable at the call site -- baking them into this disallows you from using it
+if one argument's input type was an unspecialized metavariable.
+
+However, doing so does make the more flexibly typed version compile - the 1st 2
+occurrences of (a) would become (FieldRec)s of arbitrary subsets of a (j), & the last
+occurrence would become (FieldRec j).
+
+When (renderWireAct) is used to implement (beThatGraph),
+
+	beThatGraph = graphShader `renderWireAct` (posWire >>> bindGraphStyle)
+		where ...
+
+we have to use the types
+
+	beThatGraph :: Monoid e => Wire s e GameMonad (FieldRec CompRec1D) ()
+
+	graphShader :: Monoid e => Wire s e GameMonad
+		(FieldRec CompRec1D)
+		(FieldRec ProjInfo2D -> IO ())
+
+But when manually inlined, we're permitted the weaker type signatures
+
+	beThatGraph :: (Monoid e, CompRec1D <: j)
+		=> Wire s e GameMonad (FieldRec j) ()
+
+	graphShader :: (Monoid e, CompRec1D <: j, ProjInfo2D <: i)
+		=> Wire s e GameMonad (FieldRec j) (FieldRec i -> IO ())
+
+It can hurt to write in subset constraints on inputs, since w/out one the type
+can usually be satisfied w/ an (rcast) (or (rWireCast)), & w/ one it often can't be
+satisfied from outside.
+
+On the other hand, we do this w/ the shader programs, because we want the ability to
+take several shader programs specified in terms of compatible constraints on input
+records, rather than specific input records, and apply them all to one input.
+In particular, using constraints instead of specific inputs allows the shaders
+to be combined into an operation on a scene record without changing the types as
+new shader programs are added to the scene.
+
+So having to assume (graphShader) gives a (FieldRec ProjInfo2D -> IO ()) instead
+of a (ProjInfo2D <: i => FieldRec i -> IO ()) is unpleasant, since (bestDrawing)
+is itself as flexible, as is the machinery it's wrapped in, & we'd hope to be
+able to use this machinery or draw the (Wire)craft out into the control flow
+for a dynamic scene.
+
+(renderWireAct) represents the appropriate thing, but can't actually be used
+to perform the functions we need it for.
+-}
 
 pretendItsLoading :: (Monoid e, HasTime t s, MidLoadGraph <: j)
 	=> (FieldRec CursorCircleStyle -> IO ())
