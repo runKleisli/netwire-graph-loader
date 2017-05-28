@@ -23,6 +23,7 @@ import Control.Concurrent (forkIO)
 import Control.Concurrent.STM
 import Control.DeepSeq (deepseq, NFData)
 import qualified Control.DeepSeq as DSeq (force)
+import Control.Parallel (pseq)
 
 import Data.Vinyl hiding ((<+>))
 import qualified Data.Vinyl as Vy ((<+>))
@@ -32,7 +33,7 @@ import System.FilePath ((</>))
 
 import CursorProgram (CursorCircleStyle, cursorCircle)
 
-import GraphProgram (ProjInfo2D, CompRec1D, comp1Dvref, comp1Deref, bestDrawing, cursorCircle2)
+import GraphProgram (ProjInfo2D, CompRec1D, comp1Dvref, comp1Deref, bestDrawing)
 
 
 
@@ -122,11 +123,20 @@ startLoadingGraph = initialVal $ \_ -> lift $ do
 	jacky <- newTChanIO :: IO (TChan Bool)
 	vertSource <- newTVarIO [] :: IO (TVar [[Double]])
 	edgeSource <- newTVarIO [] :: IO (TVar [[Int]])
+
 	forkIO $ reedyFn ("graphs"</>"GraphVerts.txt") vertSource filesizes jacky
 	vertFileSz <- atomically $ readTChan filesizes
-	forkIO $ seq vertFileSz
+
+	{-
+	The vertex file size comes off the channel as (vertFileSz), then the edge file
+	size as (edgeFileSz), since (pseq) makes (vertFileSz) evaluate (something come
+	in off the channel) before the edge file loader runs & puts the edge file size
+	on the channel.
+	-}
+	forkIO $ pseq vertFileSz
 		$ reedyFn ("graphs"</>"GraphEdgeInds.txt") edgeSource filesizes jacky
 	edgeFileSz <- atomically $ readTChan filesizes
+
 	-- Should count how many files are to be read and make sure (isEmptyTChan)
 	-- after that many reads.
 	return $ SField =: (vertFileSz+edgeFileSz)

@@ -1,5 +1,5 @@
 name:                netwire-graph-loader
-version:             0.0.0
+version:             0.1.0
 synopsis:            graph (Vs, Es) rendering w/ loading screens walkthrough
 description:         Programs building up to loading a graph from a file while displaying a loading screen, then rendering it. Netwire/GLFW/VinylGL/netwire-input/STM
 license:             OtherLicense
@@ -83,6 +83,7 @@ executable GraphLoadingScr
 
   build-depends:  base > 4.5 && < 5,
                   deepseq >= 1.1.0.0,
+                  parallel,
                   lens >= 3.9,
                   vinyl >= 0.4,
                   netwire == 5.0.0 || > 5.0.2,
