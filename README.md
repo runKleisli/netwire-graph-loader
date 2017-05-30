@@ -8,15 +8,9 @@ See [README-verbose.md](https://github.com/runKleisli/netwire-graph-loader/blob/
 
 ## Usage
 
-Depends on `netwire-5` not of versions `5.0.1` or `5.0.2`.
-
 Once built, copy the binaries & the `etc` and `graphs` folders into a fixed directory.
 
-Run the executables from the shell. Otherwise, the shaders may not be loaded, & you'll get errors of the form
-
-```
-GraphLoadingScr: user error (Pattern match failure in do expression at src/GraphProgram.hs:line#:#-#)
-```
+Run the executables from the shell. Otherwise, external files may not be loaded, so they won't run.
 
 ## GraphLoaderCtrl (CtrlExample.hs)
 

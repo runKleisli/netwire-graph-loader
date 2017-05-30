@@ -10,10 +10,6 @@ The important thing to remember for understanding the control flow of the STM ex
 
 ## Usage
 
-__Dependencies__
-
-Depends on `netwire-5` not of versions `5.0.1` or `5.0.2`. `netwire-5.0.1` & `netwire-5.0.2` can be used if adjusted for earlier versions of `ghc`, see [commit `dc56c5f`](https://github.com/esoeylemez/netwire/commit/dc56c5feb6f245adb51cc8935821c4422794af36) of Netwire repo.
-
 __Building__
 
 Generally, a sandboxed build is recommended
@@ -22,17 +18,7 @@ Generally, a sandboxed build is recommended
 cabal sandbox init
 ```
 
-if you have to tweak dependencies or install specific versions,
-
-```
-cabal sandbox add-source --snapshot /.../dependency-src
-...
-cabal install -j4 dependency-0.1.2
-...
-cabal install -j4 --dependencies-only
-```
-
-then, under all circumstances, a multithreaded installation is recommended
+a multithreaded installation is recommended
 
 ```
 cabal install -j4
@@ -47,10 +33,16 @@ Once built, copy the binaries from the `dist/build/...` subdirectory into a fixe
 
 __Running__
 
-Run the executables from the shell. Otherwise, the shaders may not be loaded, & you'll get errors of the form
+Run the executables from the shell. Otherwise, the asset files may not be loaded, & you'll get errors of the form
 
 ```
 GraphLoadingScr: user error (Pattern match failure in do expression at src/GraphProgram.hs:line#:#-#)
+```
+
+or
+
+```
+GraphLoadingScr: etc/cursor.vert: openBinaryFile: does not exist (No such file or directory)
 ```
 
 ## GraphLoaderCtrl (CtrlExample.hs)

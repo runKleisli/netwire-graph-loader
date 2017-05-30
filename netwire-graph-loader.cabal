@@ -1,5 +1,5 @@
 name:                netwire-graph-loader
-version:             0.1.0
+version:             0.2.0
 synopsis:            graph (Vs, Es) rendering w/ loading screens walkthrough
 description:         Programs building up to loading a graph from a file while displaying a loading screen, then rendering it. Netwire/GLFW/VinylGL/netwire-input/STM
 license:             OtherLicense
@@ -25,7 +25,6 @@ executable GraphLoaderCtrl
   build-depends:  base > 4.5 && < 5,
                   lens >= 3.9,
                   vinyl >= 0.4,
-                  netwire == 5.0.0 || > 5.0.2,
                   netwire-input,
                   netwire-input-glfw >=0.0.5 && <= 0.0.6,
                   OpenGL >= 2.9.2,
@@ -40,6 +39,10 @@ executable GraphLoaderCtrl
                   containers >= 0.5,
                   directory >= 1.2,
                   filepath ==1.3.*
+  if impl(ghc >= 7.10.1)
+    build-depends:  netwire >= 5.0.0
+  else
+    build-depends:  netwire == 5.0.0 || > 5.0.2
   default-language:  Haskell2010
 
 executable GraphLoaderProgressReporting
@@ -86,7 +89,6 @@ executable GraphLoadingScr
                   parallel,
                   lens >= 3.9,
                   vinyl >= 0.4,
-                  netwire == 5.0.0 || > 5.0.2,
                   netwire-input,
                   netwire-input-glfw >=0.0.5 && <= 0.0.6,
                   OpenGL >= 2.9.2,
@@ -102,4 +104,8 @@ executable GraphLoadingScr
                   containers >= 0.5,
                   directory >= 1.2,
                   filepath ==1.3.*
+  if impl(ghc >= 7.10.1)
+    build-depends:  netwire >= 5.0.0
+  else
+    build-depends:  netwire == 5.0.0 || > 5.0.2
   default-language:  Haskell2010
