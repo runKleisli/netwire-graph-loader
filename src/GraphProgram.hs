@@ -302,8 +302,8 @@ bestDrawing fr = graphEdgesProgram2D drawdata
 
 		mkV2FromDoubles :: [Double] -> V2 GLfloat
 		mkV2FromDoubles [] = error "Some Vert didn't have 2 enough coords."
-		mkV2FromDoubles (x:[]) = error "Some Vert didn't have 2 enough coords."
-		mkV2FromDoubles (x:y:xs) = V2 (realToFrac x) (realToFrac y)
+		mkV2FromDoubles (_:[]) = error "Some Vert didn't have 2 enough coords."
+		mkV2FromDoubles (x:y:_) = V2 (realToFrac x) (realToFrac y)
 
 cursorCircle2 :: (ProjInfo2D <: i) => IO (FieldRec i -> IO ())
 cursorCircle2 = bestDrawing

@@ -7,10 +7,8 @@ module Main where
 import System.IO
 import Control.Concurrent (forkIO)
 import Control.Concurrent.STM
-import Control.Monad
 import Control.DeepSeq (deepseq, NFData)
 
-import System.Directory (getCurrentDirectory, setCurrentDirectory)
 import System.FilePath ((</>))
 
 main :: IO ()

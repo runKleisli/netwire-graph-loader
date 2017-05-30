@@ -3,10 +3,6 @@ module Main where
 
 import Control.Concurrent (forkIO)
 import Control.Concurrent.STM
-import Control.Monad
-
-import System.Directory (getCurrentDirectory, setCurrentDirectory)
-import System.FilePath ((</>))
 
 main :: IO ()
 main = do
