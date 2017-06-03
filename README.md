@@ -4,7 +4,7 @@ Loading a graph (vertices & undirected edges) from files then displaying it on s
 Features Netwire/GLFW/VinylGL/netwire-input/STM loading screen.
 Semi-tutorialized by implementing required behavior across different executables.
 
-See [README-verbose.md](https://github.com/runKleisli/netwire-graph-loader/blob/master/README-verbose.md) for things like the semantics, concepts, research, & design behind these examples, advanced usage instructions, gaps in development, & future steps.
+See [README-verbose.md](../blob/master/README-verbose.md) for things like the semantics, concepts, research, & design behind these examples, advanced usage instructions, gaps in development, & future steps.
 
 ## Usage
 
