@@ -18,7 +18,7 @@ source-repository head
 
 executable GraphLoaderCtrl
   main-is:        CtrlExample.hs
-  other-modules:  CursorProgram, GraphProgram
+  other-modules:  CursorProgram
   hs-source-dirs: src
   ghc-options:    -Wall -rtsopts -O3 -threaded
 

@@ -2,9 +2,7 @@
 
 module Main where
 
---------------------------------------------------------------------------------
-import qualified Control.Monad as Monad (when)
-import Data.Maybe (isNothing)
+
 
 import Control.Monad.State
 import Control.Wire hiding (unless)
@@ -18,12 +16,12 @@ import qualified Graphics.Rendering.OpenGL as GL
 import Data.Vinyl hiding ((<+>))
 import qualified Data.Vinyl as Vy ((<+>))
 import Linear (V2(..), V3(..))
+
+import qualified Control.Monad as Monad (when)
+import Data.Maybe (isNothing)
 import System.Directory (getCurrentDirectory, setCurrentDirectory)
-import System.FilePath ((</>))
 
-import CursorProgram (CursorCircleStyle(..), cursorCircle)
-
-import GraphProgram (ProjInfo2D, CompRec1D, comp1Dvref, comp1Deref, bestDrawing, cursorCircle2)
+import CursorProgram (CursorCircleStyle, cursorCircle)
 
 
 
