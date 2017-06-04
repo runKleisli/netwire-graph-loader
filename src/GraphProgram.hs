@@ -27,93 +27,10 @@ type Color = '("vertexColor", V3 GLfloat)
 pos2D :: SField Pos2D
 pos2D = SField
 
-{-
-normal :: SField Normal
-normal = SField
--}
-
 col :: SField Color
 col = SField
 
 type ProjInfo2D = '[ '("offset", V2 GLfloat) ]
-
-
-------------------------------------------------
--- Graph modeling
-------------------------------------------------
-
-
-{-
-This type is not general, b-c for higher-dimensional drawings, our data won't be given
-as a fixed-dim output until the projection is chosen, w/c should be user-modifiable &
-hence a shader input. However, each special-case type must be fixed-dimension, since
-the result data will also be a shader input & the projection will vary in type.
-
-This suggests each shader be judged as compatible w/ a given dimension according to the
-type of projection it uses, so that different record constraints are imposed for
-projection info requirements corresponding to different dimensions of drawing.
-
-For 2D, the projection info if any is 2x2 mat, and the vertex data type is (V2 GLfloat).
-For 3D, the projection info is a 4x4 homogeneous matrix, & vertex type (V3 GLfloat).
-For ND, projections are (N+1)d homogeneous matrices split up into blocks, & vertices are
-	Nd lists split up into at-most-(V4 GLfloat)-sized chunks.
-
-	To allow the possibility of code generation, the block sizes could be regular,
-	if we can arrange that the homogeneous matrix's in-shader application reduces to
-	the linear projection to the used dimensions when zero rows & columns are given
-	for the coordinates in the unused dimensions of (N+K+1)d space. Urgh.. but no
-	matter what, the (N+K+1)d projection matrices will be of different chunks than
-	the vertex vectors, unless we homogenize those, w/c we'd end up doing somewhere
-	along the pipeline anyway.
-
-On one hand, doing projection on GPU is a fork of the design. On the other hand,
-if we switch to doing projection on CPU, we can still use the 2D or 3D-specialized code
-& revert to a more traditional, projectionless shader, meaning we only remove code
-& insert a projection step in-between gathering vertices & passing them to the shader.
-
-I see.. so, actually, we need to split this into a process for obtaining the ND vector
-representation and a later step for accessing data w/ that representation. That way, the
-code for accessing the vertices only depends on what the representation type is, so
-when the dimension changes between doing projection on GPU and on CPU, access doesn't.
-
-access : [posty] -> Int -> posty
-better, access : (vertty -> Int) -> [posty] -> vertty -> posty
-Even better, if [posty] is replaced w/ an indexable structure of (posty)s and Int by
-its index type.
-
-project : vertty -> posty
-or, project : [vertty] -> [posty]
-
-getcoords : [posty] -> Int -> posty
-getcoords = flip index
-
-The function argument to the last version of (access) is a getter, w/c is composed w/ the usual getter for [posty] by indices. So really, the last version of (access) can be
-replaced w/ any getter of (posty)s from (vertty)s. The projection is such a getter.
-
-So the process for obtaining the [posty] should really be done independently of
-specifying the shader programs. It's a different functionality of the application.
-
-The only problem is when there are other parameters to the shader program that come
-from interaction w/ the application, for example, changing the color of one vertex.
-
-But it's not as big a deal to decide on figuring out the colors things are supposed to
-have near before you send the data off to shaderville. If anything, we'll have more flexibility, since colors are often either based on the preprojection info or done
-entirely in the shader. Ugh, but then as we tend toward generality - specifying colors
-before gathering points - we end up refocusing the pipeline into main but doing nothing
-to localize to a process of deducing shader data from miminal specification.
-
-What I propose is, we build pipelines for incrementally filling out a record of data
-required to build a shader or list of shaders. As we change the needs of the program,
-we can replace pieces of the pipeline. So, we want to work mostly Record -> Record,
-rather than Data -> Record. For this, partial extensions can be encoded as different
-subrecord constraints on the input and output types, the output-constraining subrecord
-being the transformation of the input-constraining record.
-
-In other words, while adjoining a color induces an upgrade from position-only fields
-to color fields, out pipeline for working w/ noncolor data doesn't need to know
-whether we have color data yet.
--} 
-
 
 ------------------------------------------------
 -- Graph drawing shader programs
@@ -192,10 +109,6 @@ All edges green.
 edgecolors :: FieldRec '[Pos2D] -> FieldRec [Pos2D,Color]
 edgecolors = (<+> col =: V3 0.0 1.0 0.0)
 
--------
--- Metafunctions deriving shader programs for every dimension
--------
-
 -----
 -- Parameters to circle drawing
 -----
@@ -250,6 +163,11 @@ cursorCircle = graphEdgesProgram2D drawdata
 
 type CompRec1D = '[ '("verts", [[Double]] {- each length = dim -})
 	, '("edgeinds", [[Int]] {- each length 2 -}) ]
+
+-----
+-- Graph drawing
+-- + Derived circle drawing
+-----
 
 {-
 comp1Dvindref :: SField '("vertinds", [Int])
