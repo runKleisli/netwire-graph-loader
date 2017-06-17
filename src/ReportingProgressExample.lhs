@@ -5,7 +5,8 @@ Netwire graph loader - Progress reporting example
 > module Main where
 
 We write a program that checks the status of a progressive computation of a list, & is
-able to do other things like interact with the user in the mean time, by having one thread calculate parts of the list and report major progress while the main thread checks that
+able to do other things like interact with the user in the mean time, by having one thread
+calculate parts of the list and report major progress while the main thread checks that
 status.
 
 > import Control.Concurrent (forkIO)
