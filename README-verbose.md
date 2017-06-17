@@ -46,7 +46,7 @@ GraphLoadingScr: etc/cursor.vert: openBinaryFile: does not exist (No such file o
 ```
 
 ## GraphLoaderCtrl
-## CtrlExample.(l)hs ##
+__CtrlExample.(l)hs__
 
 Demonstrates in Netwire the kind of permanent state change needed in a loading screen. The cursor has a time-varying color when the program starts, but when the user hits the `C` key, it becomes green. Color responds to pressing the `R`, `G`, & `B` keys before & after, as in the example this is based off of.
 
@@ -55,14 +55,14 @@ Builds on the Style 3 [netwire-vinylglfw-examples](https://github.com/runKleisli
 The key change is to `colorWire`, by taking its `(<|>)`-separated list of ways the wire can respond to keypresses to change the color it emits, and replacing the default option of a pulsing color with a `Wire` that behaves like a pulsing color until `C` is pressed, from w/c point on it emits the color green. This `Wire` is based off of `quitWire`, w/c comes from the Cursor example, and the pulsing color `Wire` it takes the place of. `quitWire` is a "wire that behaves like the identity wire until Q is pressed, then inhibits forever."
 
 ## GraphLoaderProgressReporting
-## ReportingProgressExample.(l)hs ##
+__ReportingProgressExample.(l)hs__
 
 STM example wherein a computation forked off into a different thread reports its completion status to the root computation.
 
 Although the concurrent web link checker example from [RWH - STM](http://book.realworldhaskell.org/read/software-transactional-memory.html) uses many of the features we need, it's significantly less straightforward, so to understand our code it would be clearer to read the documentation for Control.Concurrent.forkIO & everything that comes from the stm package.
 
 ## GraphLoaderLoadReporting
-## ReportingLoadExample.hs ##
+__ReportingLoadExample.hs__
 
 STM example wherein a file is loaded and its progress reported as it loads chunks. The load is done in its own thread, so the root computation can interact w/ the user while the file is loading.
 
@@ -71,7 +71,7 @@ __Usage__
 A file called `GraphEdgeInds.txt` must be placed in a `graphs` subdirectory of the location of the executable. It must contain a string representation of a `[[Int]]` as would be accepted by Haskell's `read`, w/ no other content, no whitespace including trailing newlines, ex. `[]` or `[[10,1],[2,3]]` or `[[],[2,3]]`. It should be multiple kilobytes big to see the effects well.
 
 ## GraphLoadingScr
-## GraphLoadingScr.hs ##
+__GraphLoadingScr.hs__
 
 This executable loads the graph, then displays it. It uses the completed loading screen.
 
@@ -111,7 +111,7 @@ Cutting to a circle of different appearance on hitting the load key gives feedba
 
 The circle fades into the background as it becomes less relevant, but this prevents one from being able to detect if the load is stuck at a (near-)completed state. This is more clearly represented by a bytes loaded out of total count.
 
-## Future work ##
+## Future work
 
 A literate programming version with more tutorialization, including development of the graph drawing program itself & of the intermediate step from the repo's initialization wherein only one file making up the graph is loaded.
 

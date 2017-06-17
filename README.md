@@ -13,22 +13,22 @@ Once built, copy the binaries & the `etc` and `graphs` folders into a fixed dire
 Run the executables from the shell. Otherwise, external files may not be loaded, so they won't run.
 
 ## GraphLoaderCtrl
-## CtrlExample.(l)hs ##
+__CtrlExample.(l)hs__
 
 Demonstrates in Netwire the kind of permanent state change needed in a loading screen. The cursor has a time-varying color when the program starts, but when the user hits the `C` key, it becomes green. Color responds to pressing the `R`, `G`, & `B` keys before & after, as in the example this is based off of.
 
 ## GraphLoaderProgressReporting
-## ReportingProgressExample.(l)hs ##
+__ReportingProgressExample.(l)hs__
 
 STM example wherein a computation forked off into a different thread reports its completion status to the root computation.
 
 ## GraphLoaderLoadReporting
-## ReportingLoadExample.hs ##
+__ReportingLoadExample.hs__
 
 STM example wherein a file is loaded and its progress reported as it loads chunks. The load is done in its own thread, so the root computation can interact w/ the user while the file is loading.
 
 ## GraphLoadingScr
-## GraphLoadingScr.hs ##
+__GraphLoadingScr.hs__
 
 This executable loads the graph, then displays it. It uses the completed loading screen.
 
