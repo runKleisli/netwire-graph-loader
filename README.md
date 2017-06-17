@@ -4,7 +4,7 @@ Loading a graph (vertices & undirected edges) from files then displaying it on s
 Features Netwire/GLFW/VinylGL/netwire-input/STM loading screen.
 Semi-tutorialized by implementing required behavior across different executables.
 
-See [README-verbose.md](../blob/master/README-verbose.md) for things like the semantics, concepts, research, & design behind these examples, advanced usage instructions, gaps in development, & future steps.
+See [README-verbose.md](README-verbose.md) for things like the semantics, concepts, research, & design behind these examples, advanced usage instructions, gaps in development, & future steps.
 
 ## Usage
 
@@ -12,19 +12,23 @@ Once built, copy the binaries & the `etc` and `graphs` folders into a fixed dire
 
 Run the executables from the shell. Otherwise, external files may not be loaded, so they won't run.
 
-## GraphLoaderCtrl (CtrlExample.hs)
+## GraphLoaderCtrl
+## CtrlExample.(l)hs ##
 
 Demonstrates in Netwire the kind of permanent state change needed in a loading screen. The cursor has a time-varying color when the program starts, but when the user hits the `C` key, it becomes green. Color responds to pressing the `R`, `G`, & `B` keys before & after, as in the example this is based off of.
 
-## GraphLoaderProgressReporting (ReportingProgressExample.hs)
+## GraphLoaderProgressReporting
+## ReportingProgressExample.(l)hs ##
 
 STM example wherein a computation forked off into a different thread reports its completion status to the root computation.
 
-## GraphLoaderLoadReporting (ReportingLoadExample.hs)
+## GraphLoaderLoadReporting
+## ReportingLoadExample.hs ##
 
 STM example wherein a file is loaded and its progress reported as it loads chunks. The load is done in its own thread, so the root computation can interact w/ the user while the file is loading.
 
-## GraphLoadingScr (GraphLoadingScr.hs)
+## GraphLoadingScr
+## GraphLoadingScr.hs ##
 
 This executable loads the graph, then displays it. It uses the completed loading screen.
 
